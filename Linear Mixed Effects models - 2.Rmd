@@ -49,7 +49,7 @@ If you opened this Rmd file outside of a project, you will need some code to fin
 
 If your're in a project, just put the data in the project folder and you're good to go! (Or make a data subfolder to keep it tidy around here)
 ```{r Load Data, include = FALSE}
-setwd("~/Cognitive Science/3. Semester/Experimental Methods 3/Classes/ExperimentalMethods3/Data")
+setwd("~/Cognitive Science/3. Semester/Experimental Methods 3/Portfolios/Data/")
 autism_data <- read.csv("autism_data.csv")
 ```
 
