@@ -55,12 +55,122 @@ To re-iterate one more time: Hand in a document with your findings but without c
 
 N.B. The following lines are a summary of the questions to be answered, the step-by-step instructions and tips are in the template.
 
+```{r, include = FALSE}
+library(pacman)
+p_load(tidyverse, stringr, lme4, nlme, growthcurver, dplyr, reshape2, purr)
+setwd("~/Cognitive Science/3. Semester/Experimental Methods 3/Portfolios/Data/")
+autism_data <- read.csv("autism_data.csv")
+```
+
 ## Exercise 1) Preliminary Data Exploration
 
 Describe the participant samples in the dataset (e.g. by diagnosis, age, etc.). Do you think the two groups are well balanced? If not, what do you think was the reason?
 
+```{r, echo = FALSE}
+#Diagnosis
+ggplot(autism_data, aes(Diagnosis)) +
+  geom_bar(aes(fill=Diagnosis))
+```
+
+Equal distribution of dignosis (cirka) - but not representive for the rest of the population. 
+
+```{r, echo = FALSE}
+ggplot(autism_data, aes(Diagnosis, Age)) + 
+  geom_boxplot()
+```
+
+With diagnosis ASD often older - though spread also larger. If the model used to predict mlu used age rather than visit - one might imagine the effect to be larger, since the children with ASD are further along in their development. 
+
+```{r,  echo = FALSE}
+#Demographics
+ggplot(autism_data, aes(Gender)) +
+  geom_bar(aes(fill=Diagnosis), position = "dodge")
+  
+
+```
+The distribution of gender is unbalanced with a high amount of females. This seems counterintutive, since previous research have shown that ASD is mostly 
+
+```{r, echo = FALSE}
+
+autism_data$Ethnicity[34] <- "Bangladeshi" 
+
+ggplot(autism_data, aes(Ethnicity)) +
+  geom_bar(aes(fill=Ethnicity)) + theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+ggplot(autism_data, aes(Diagnosis)) +
+  geom_bar(aes(fill=Gender, position = "dodge")) + 
+             facet_wrap(~Ethnicity) + theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+```
+A lot more white - if you want to say something about ethnicity - then a problem
+
+If compare to diagnosis - not all the whites are normal. 
+
+```{r, echo = FALSE}
+
+# ADOS 
+ggplot(autism_data, aes(Diagnosis, ADOS1)) + 
+         stat_summary(fun.y = mean, geom = "bar", fill = "White", colour = "Black") + 
+                        stat_summary(fun.data = mean_cl_normal, geom = "pointrange") 
+
+```
+
+Instrument for assesing ASD - so makes sense higher for children with ASD - the point is the measure works 
+
+```{r, echo = FALSE}
+# VerbalIQ
+ggplot(autism_data, aes(Diagnosis, verbalIQ1)) + 
+         stat_summary(fun.y = mean, geom = "bar", fill = "White", colour = "Black") + 
+                        stat_summary(fun.data = mean_cl_normal, geom = "pointrange") 
+
+# nonverbalIQ1
+ggplot(autism_data, aes(Diagnosis, nonverbalIQ1)) + 
+         stat_summary(fun.y = mean, geom = "bar", fill = "White", colour = "Black") + 
+                        stat_summary(fun.data = mean_cl_normal, geom = "pointrange") 
+
+
+```
+ Verbal IQ seems to relate to the diagnosis - if you are typical development you have a higher bverbal iq - this is interesting in relation to non-verbal IQ - see next plot 
+
+Higher for children with ASD interesting in relation to typically developed. 
+
+```{r}
+
+#tokens
+ggplot(autism_data, aes(Diagnosis, tokens_CHI)) + 
+         stat_summary(fun.y = mean, geom = "bar", fill = "White", colour = "Black") + 
+                        stat_summary(fun.data = mean_cl_normal, geom = "pointrange") 
+#types
+ggplot(autism_data, aes(Diagnosis, types_CHI)) + 
+         stat_summary(fun.y = mean, geom = "bar", fill = "White", colour = "Black") + 
+                        stat_summary(fun.data = mean_cl_normal, geom = "pointrange") 
+
+```
+
+Children with ASD usually have smaller vocabulary and generally speak less. 
+
+
+
+```{r, echo = FALSE}
+#child mlu
+ggplot(autism_data, aes(Diagnosis, CHI_MLU)) + 
+         stat_summary(fun.y = mean, geom = "bar", fill = "White", colour = "Black") + 
+                        stat_summary(fun.data = mean_cl_normal, geom = "pointrange") 
+#parent mlu
+ggplot(autism_data, aes(Diagnosis, MOT_MLU)) + 
+         stat_summary(fun.y = mean, geom = "bar", fill = "White", colour = "Black") + 
+                        stat_summary(fun.data = mean_cl_normal, geom = "pointrange") 
+```
+Differs from tokens by telling how much children talk in every utterance. Thus, ASD tends to talk less, use less different words and make shorter utterances. 
+
+Generally mother to children with ASD aso talk a bit less - interesting whether this is an effect of the children speaking less or if the children speak less because their mothers do. 
+
 ### Exercise 2) Children learning language: the effects of time and ASD
 Describe linguistic development in TD and ASD children in terms of Mean Length of Utterance (MLU)?
+
+We hypothesise that child MLU is predicted by visit and diagnosis. 
+
+First we tried to describe the correlation with linear regression, however comparing the linear model with a null model, where mean length utterance only is predicted by time. This appears strange looking at the plots we described in the beginng, where diagnosis seem to have an effect of MLU. Therefore we try to fit a growth curve. 
 
 ### Exercise 3) Child directed speech as a moving target
 Describe how parental use of language changes over time in terms of MLU. What do you think is going on?
