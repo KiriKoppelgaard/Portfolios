@@ -7,57 +7,24 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+options(warn=-1)
 ```
 
 # Language development in Autism Spectrum Disorder (ASD)
-
 Background: Autism Spectrum Disorder is often related to language impairment. However, this phenomenon has not been empirically traced in detail:
-i) relying on actual naturalistic language production, 
-ii) over extended periods of time.
+i) relying on actual naturalistic language production
+ii) over extended periods of time
 
 We therefore videotaped circa 30 kids with ASD and circa 30 comparison kids (matched by linguistic performance at visit 1) for ca. 30 minutes of naturalistic interactions with a parent. We repeated the data collection 6 times per kid, with 4 months between each visit. We transcribed the data and counted: 
 i) the amount of words that each kid uses in each video. Same for the parent.
 ii) the amount of unique words that each kid uses in each video. Same for the parent.
 iii) the amount of morphemes per utterance (Mean Length of Utterance) displayed by each child in each video. Same for the parent. 
 
-This data is in the file you prepared in the previous class. 
-
-NB. A few children have been excluded from your datasets. We will be using them next week to evaluate how good your models are in assessing the linguistic development in new participants.
-
 We then want to test the language trajectory of child and parent over time.
-
-This RMarkdown file is structured in the following way:
-
-1. The exercises: read them carefully. Under each exercise you will have to write your answers, once you have written and run the code. This is the part that you have to directly send to the teachers.
-2. An (optional) guided template full of hints for writing the code to solve the exercises. Fill in the code and the paragraphs as required. Then report your results under the exercise part.
-3. In exercise 4 you will be asked to create the best possible model of language development in TD and ASD children, picking and choosing whatever additional variables you want from the dataset. Next time, the models produced by the different groups will compete against each other to see who can produce the best model, so choose carefully!
-
-You will have to have a github repository for the code and send the answers to Malte and Riccardo without code (but a link to your github/gitlab repository). This way we can check your code, but you are also forced to figure out how to report your analyses :-)
-
-Remember to submit only your findings, and not just the code. To do this you can either
-- Write your answers in a separate document
-- Write your answers in the template, but tell rstudio not to print the code chunks when you knit it with the chunk option include=FALSE
-
-```{r, include=FALSE}
-# with include=FALSE, the code will still run
-x = 1
-# but it will not print anything
-print(x)
-```
-
-```{r, echo = FALSE}
-# if you want to hide the code but show the output (a plot for instance)
-# you can use echo = FALSE
-print(x+10)
-```
-
-To re-iterate one more time: Hand in a document with your findings but without code (html or pdf or word) and a link to your github/gitlab with your Rmd file.
-
-N.B. The following lines are a summary of the questions to be answered, the step-by-step instructions and tips are in the template.
 
 ```{r, include = FALSE}
 library(pacman)
-p_load(tidyverse, stringr, lme4, nlme, growthcurver, dplyr, reshape2, purr)
+p_load(tidyverse, stringr, lme4, nlme, growthcurver, dplyr, reshape2)
 setwd("~/Cognitive Science/3. Semester/Experimental Methods 3/Portfolios/Data/")
 autism_data <- read.csv("autism_data.csv")
 ```
@@ -66,20 +33,26 @@ autism_data <- read.csv("autism_data.csv")
 
 Describe the participant samples in the dataset (e.g. by diagnosis, age, etc.). Do you think the two groups are well balanced? If not, what do you think was the reason?
 
+Generally, when taking the most relevant variables into account, the sample of participants are proportionally distributed, which enables applying of statistical tools which will include relatively reliable  predictions of the mean length of utterance of children according to time and their diagnosis. However, there are several issues I would like to point to.  
+
+As seen below the distribution of typically developed children and children with ASD is relatively equal
+
 ```{r, echo = FALSE}
 #Diagnosis
 ggplot(autism_data, aes(Diagnosis)) +
   geom_bar(aes(fill=Diagnosis))
 ```
 
-Equal distribution of dignosis (cirka) - but not representive for the rest of the population. 
+A comment to be made in relation to the distribution of typically developing children compared to children with ASD is that this proportion does not map onto the population. However, since we the variable we wish to measure is the mean length of utterance in relation to time and diagnosis, the distribution of diagnosis play little role.
+
+A comment can be made in relation to the age distribution of typically developed children and children with ASD. As is seen in the plot below, the sample has a disproportionate age distribution. It appears that the sampled children with ASD are slightly older than typically developed children. Since we use visits as a predictor of mean length of utterance rather than age, this maight have the effect that the sampled children with ASD may be further along in their development without us taking into account that they were older in the first place. 
 
 ```{r, echo = FALSE}
 ggplot(autism_data, aes(Diagnosis, Age)) + 
   geom_boxplot()
 ```
 
-With diagnosis ASD often older - though spread also larger. If the model used to predict mlu used age rather than visit - one might imagine the effect to be larger, since the children with ASD are further along in their development. 
+The distribution of gender is pretty skewed. The high amount of females seems strange, having in mind the mostly males are diagnosed with ASD. However, we do not wish to predict anything about gender, therefore we will be fine, though it might be a good idea to include gender as a random effect.  
 
 ```{r,  echo = FALSE}
 #Demographics
@@ -88,8 +61,7 @@ ggplot(autism_data, aes(Gender)) +
   
 
 ```
-The distribution of gender is unbalanced with a high amount of females. This seems counterintutive, since previous research have shown that ASD is mostly 
-
+The distribution of ethnicity shows a high amount of whites compred to other ethnicities. However, since we have little interest in the effect of ethnicity on mean length of utterance, this is not too alarming. Especially, since the distribution of diagnosis within the catgories of ethnicity show a equal distribution. 
 ```{r, echo = FALSE}
 
 autism_data$Ethnicity[34] <- "Bangladeshi" 
@@ -102,9 +74,8 @@ ggplot(autism_data, aes(Diagnosis)) +
              facet_wrap(~Ethnicity) + theme(axis.text.x = element_text(angle = 90, hjust = 1))
 
 ```
-A lot more white - if you want to say something about ethnicity - then a problem
-
-If compare to diagnosis - not all the whites are normal. 
+The following plots are highly relevant for assessing, whether the measures of diagnosing ASD are any good. 
+The plot below that the mean ADOS value (an instrument for diagnosing and assessing autism) is significantly higher for children with ASD than typically developing children - thus, the measure works. However, the diagnosis of the children are probably also based on this measure, therefore it might be, that in reality it does not tell us much. 
 
 ```{r, echo = FALSE}
 
@@ -115,7 +86,9 @@ ggplot(autism_data, aes(Diagnosis, ADOS1)) +
 
 ```
 
-Instrument for assesing ASD - so makes sense higher for children with ASD - the point is the measure works 
+The linguistic intelligence of the children are measured using a verbal IQ measure. The verbal IQ we would expect to be lower for chldren with ASD, since we hypothesise children with ASD using fewer in general fewer words, also unique words and speak less in coherence. The plot supports this hypothesis, since typically developing childern has a higher verbal IQ. 
+
+An interesting observation to be made is, that nonverbal IQ appears to be higher for children with ASD. 
 
 ```{r, echo = FALSE}
 # VerbalIQ
@@ -130,11 +103,9 @@ ggplot(autism_data, aes(Diagnosis, nonverbalIQ1)) +
 
 
 ```
- Verbal IQ seems to relate to the diagnosis - if you are typical development you have a higher bverbal iq - this is interesting in relation to non-verbal IQ - see next plot 
+The following plots show a distribution of how many words the sample's children utter and how many unique words they utter. In relation to our previous beliefs children with ASD usually have smaller vocabulary and generally speak less.
 
-Higher for children with ASD interesting in relation to typically developed. 
-
-```{r}
+```{r, include = FALSE}
 
 #tokens
 ggplot(autism_data, aes(Diagnosis, tokens_CHI)) + 
@@ -147,8 +118,7 @@ ggplot(autism_data, aes(Diagnosis, types_CHI)) +
 
 ```
 
-Children with ASD usually have smaller vocabulary and generally speak less. 
-
+Lastly reported are barplots of the children and their mother's s mean length of utterance. This shows that children with ASD tends to talk less in coherence - a pattern which is reflected in their methors. Generally mothers to children with ASD also talk less in coherence. An interesting matter to investigate is whether this is an effect of the children speaking less or if the children speak less because their mothers do. 
 
 
 ```{r, echo = FALSE}
@@ -161,34 +131,48 @@ ggplot(autism_data, aes(Diagnosis, MOT_MLU)) +
          stat_summary(fun.y = mean, geom = "bar", fill = "White", colour = "Black") + 
                         stat_summary(fun.data = mean_cl_normal, geom = "pointrange") 
 ```
-Differs from tokens by telling how much children talk in every utterance. Thus, ASD tends to talk less, use less different words and make shorter utterances. 
 
-Generally mother to children with ASD aso talk a bit less - interesting whether this is an effect of the children speaking less or if the children speak less because their mothers do. 
 
 ### Exercise 2) Children learning language: the effects of time and ASD
 Describe linguistic development in TD and ASD children in terms of Mean Length of Utterance (MLU)?
 
-We hypothesise that child MLU is predicted by visit and diagnosis. 
+Linguistic development of children MLU is affected by visit (time) and diagnosis (MLU ~ visit + diagnosis).  
 
-First we tried to describe the correlation with linear regression, however comparing the linear model with a null model, where mean length utterance only is predicted by time. This appears strange looking at the plots we described in the beginng, where diagnosis seem to have an effect of MLU. Therefore we try to fit a growth curve. 
+Using lme4 to perform a quadratic mixed effects analysis of the relationship between the children's mean length of utterance as it evolves over time and their diagnosis. As fixed effects, we entered diagnosis (ASD; autism spectrum disorder and TP; typically developing) and visit (without interaction term) into the model. As random effects, we had an intercept for subjects, as well as a by‐subject random slope for the effect of visit. P‐value was obtained by likelihood ratio tests of the full model with the effect in question against the model without the effect in question; children's diagnosis and number of visit affected mean length of utterance (χ2(5)=64.089,	 p<0.05),	mean length of utterance 	was extended by	about	0.54 words per visit	(SE= 0.07) and was extended by	about 0.11 (SE=0.12) for typically developing children. 
 
-
-We used R (R Core Team, 2012) and lme4 (Bates, Maechler & Bolker, 2012) to perform a CUBIC/QUADRATIC? mixed effects analysis of the relationship between the children's mean length of utterance as it evolves over time and their diagnosis. As fixed effects, we entered diagnosis (ASD; autism spectrum disorder and TP; typically developing) and visit (without interaction term) into the model. As random effects, we had an intercept for subjects, as well as a by‐subject random slope for the effect of visit. P‐value was obtained by likelihood ratio tests of the full model with the effect in question against the model without the effect in question; children's diagnosis and number of visit affected mean length of utterance (χ2(4)=63.82,	 p<0.05),	mean length of utterance 	was extended by	about	0.41 words per visit	(SE= 0.049) and was extended by	about 0.11 (SE=0.12) for typically developing children. 
-
-Thus, childrens mean length utterane was significantly predicted by visit and diagnosis. The development of mean length of utterance for the children is shown in the plot below. 
+#How to report betas? I am pretty sure this is wrong
 
 ```{r, echo = FALSE}
-ggplot(autism_data, aes(x=VISIT, y = CHI_MLU)) + geom_point(alpha=0.5, aes(color = Diagnosis)) + geom_smooth(method=lm,formula=y~poly(x,3), aes(color=Diagnosis))+ theme_bw()
+ggplot(autism_data, aes(x=VISIT, y = CHI_MLU)) + geom_point(alpha=0.5, aes(color = Diagnosis)) + geom_smooth(method=lm,formula=y~poly(x,2), aes(color=Diagnosis))+ theme_bw()
 ```
 
 
 ### Exercise 3) Child directed speech as a moving target
 Describe how parental use of language changes over time in terms of MLU. What do you think is going on?
 
+The parental use of language is affected by visit and diagnosis (MLU ~ visit + diagnosis) in line with their children.  
+
+Using lme4 to perform a cubic mixed effects analysis of the relationship between the mothers mean length of utterance as it evolves over time and their childrens diagnosis. As fixed effects, we entered diagnosis (ASD; autism spectrum disorder and TP; typically developing) and visit (without interaction term) into the model. As random effects, we had an intercept for subjects, as well as a by‐subject random slope for the effect of visit. P‐value was obtained by likelihood ratio tests of the full model with the effect in question against the model without the effect in question; children's diagnosis and number of visit affected parental mean length of utterance (χ2(3)=24.949,	 p<0.05),	parental mean length of utterance was extended by	about	0.24 words per visit	(SE= 0.20) and was extended by	about 0.49 (SE=0.11) for typically developing children.
+
+The similar effect of shorter mean length of utterances for parents there have children with ASD is probably a result of an adjustment to the child's progress. 
+
+#how to report the betas? I am pretty sure, this is wrong
+
+```{r, echo= FALSE}
+ggplot(autism_data, aes(x=VISIT, y = MOT_MLU)) + geom_point(alpha=0.5, aes(color = Diagnosis)) + geom_smooth(method=lm,formula=y~poly(x,3), aes(color=Diagnosis))+ theme_bw()
+```
 
 
 ### Exercise 4) Looking into "individual differences" (demographic, clinical or cognitive profiles)
-The dataset contains some additional variables characterizing the kids’ cognitive and clinical profile: ADOS (autism severity), MSEL EL (Expressive Language, that is, verbal IQ, or linguistic skills at first visit as assessed by a psychologist using Mullen Scales of Early Learning), MSEL VR (Visual Reception, used as a proxy for non verbal IQ at first visit), Age, Gender, Ethnicity. Would it make sense to add any of them to your model of linguistic trajectories? Create the best possible model (the one that best explain the data, with MLU as outcome). Next time your model will be tested on new participants, and we will proclaim a winner. Describe your strategy to select the best models (how did you choose the variables to include?) and send the code to Riccardo and Celine.
+The dataset contains some additional variables characterizing the kids’ cognitive and clinical profile: ADOS (autism severity), MSEL EL (Expressive Language, that is, verbal IQ, or linguistic skills at first visit as assessed by a psychologist using Mullen Scales of Early Learning), MSEL VR (Visual Reception, used as a proxy for non verbal IQ at first visit), Age, Gender, Ethnicity. Would it make sense to add any of them to your model of linguistic trajectories? Create the best possible model (the one that best explain the data, with MLU as outcome). Next time your model will be tested on new participants, and we will proclaim a winner. Describe your strategy to select the best models (how did you choose the variables to include?) and send the code to Riccardo and Malthe.
+
+As mentioned previously including ethnicity and gender as random effects will probably be beneficial. Furthermore, it could be interesting to include fixed effects such as ADOS, verbal IQ and nonverbal IQ measures. 
+
+P‐value was obtained by likelihood ratio tests of the full model with the effect in question against the model without the effect in question; children's diagnosis, the measure of ADOS, verbal IQ, non verbal IQ and number of visit affected childrens mean length of utterance (χ2(7)=74.778,	 p<0.05),	
+# REPORTING BETAS AND SE FOR model 11: 
+
+parental mean length of utterance was extended by	about	0.24 words per visit	(SE= 0.20) and was extended by	about 0.49 (SE=0.11) for typically developing children.
+
 
 ### [OPTIONAL] Exercise 5) Comment on how the three linguistic variables measure linguistic performance (the so-called "construct validity" of the measures). Do they express the same variance?
 
