@@ -163,16 +163,21 @@ model2 = lmer(CHI_MLU ~ VISIT + Diagnosis + I(VISIT^2)+(1+VISIT+ I(VISIT^2)|ANO_
 #testing it against the linear model
 anova(model, model2)
 
-#Building cubic model
-model3 = lmer(CHI_MLU ~ VISIT + Diagnosis +I(VISIT^3)+(1+VISIT+I(VISIT^3)|ANO_SUBJ), data = autism_data, REML = FALSE)
+#trying to scale VISIT to get it to converge
+autism_data$VISIT1 <- autism_data$VISIT/6
 
-summary(model3)
+#Building cubic model
+model3 = lmer(CHI_MLU ~ Diagnosis +VISIT + I(VISIT^2) +I(VISIT^3)+(1+VISIT|ANO_SUBJ), data = autism_data, REML = FALSE)
+
+
 
 #testing it against the linear model
-anova(model, model3)
+anova(model, model2, model3)
 
 #testing it against the quadratic model
-anova(intercept_model, null_model, model3)
+anova(intercept_model, null_model, model2)
+
+summary(model2)
 
 ```
 
@@ -211,7 +216,7 @@ model5 = lmer(MOT_MLU ~ VISIT + Diagnosis + I(VISIT^2)+(1+VISIT+ I(VISIT^2)|ANO_
 
 
 #Building cubic model
-model6 = lmer(MOT_MLU ~ VISIT + Diagnosis +I(VISIT^3)+(1+VISIT+I(VISIT^3)|ANO_SUBJ), data = autism_data, REML = FALSE)
+model6 = lmer(MOT_MLU ~ Diagnosis + VISIT  + I(VISIT^2) +I(VISIT^3)+(1+VISIT|ANO_SUBJ), data = autism_data, REML = FALSE)
 
 #Buidling a baseline model
 intercept_model1 =lmer(MOT_MLU ~ 1+ (1+VISIT|ANO_SUBJ), data = autism_data,
@@ -225,8 +230,9 @@ REML=FALSE)# creating the null model
 anova(model4,model5, model6)
 
 #Comparing the models using anova()
-anova(null_model1,intercept_model1, model6)
+anova(null_model1,intercept_model1, model11)
 
+summary(model6)
 ```
 
 [REPORT THE RESULTS]
@@ -256,6 +262,7 @@ anova(model3, model9)
 anova(model3, model10)
 anova(model3, model11)
 
+summary(model11)
 ```
 
 [REPORT THE RESULTS]
