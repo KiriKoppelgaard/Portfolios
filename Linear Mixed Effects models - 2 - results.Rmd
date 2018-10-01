@@ -2,7 +2,9 @@
 title: "Linear Mixed Effects Models - 2 - results"
 author: "Kiri Koppelgaard"
 date: "September 14, 2018"
-output: html_document
+output:
+  pdf_document: default
+  html_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -105,7 +107,7 @@ ggplot(autism_data, aes(Diagnosis, nonverbalIQ1)) +
 ```
 The following plots show a distribution of how many words the sample's children utter and how many unique words they utter. In line with our beliefs, children with ASD usually have smaller vocabulary and generally speak less.
 
-```{r, include = FALSE}
+```{r, echo = FALSE}
 
 #tokens
 ggplot(autism_data, aes(Diagnosis, tokens_CHI)) + 
@@ -143,7 +145,13 @@ Using lme4 to perform a quadratic mixed effects analysis of the relationship bet
 
 ```{r, echo = FALSE}
 ggplot(autism_data, aes(x=VISIT, y = CHI_MLU)) + geom_point(alpha=0.5, aes(color = Diagnosis)) + geom_smooth(method=lm,formula=y~poly(x,2), aes(color=Diagnosis))+ theme_bw()
+
+
+#Plot the single kid as well!
 ```
+
+
+
 
 
 ### Exercise 3) Child directed speech as a moving target
@@ -173,3 +181,8 @@ P‐value was obtained by likelihood ratio tests of the full model with the effe
 
 
 Here is the link to my repository: https://github.com/KiriKoppelgaard/Portfolios
+
+
+
+#R M marginal variance explained by fixed effects
+#R C variance explained including random effects
