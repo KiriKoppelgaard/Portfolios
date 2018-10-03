@@ -1,5 +1,5 @@
 ---
-title: "Portfolio 1_3"
+title: "Portfolio 3"
 author: "Kiri Koppelgaard"
 date: "September 28, 2018"
 output:
