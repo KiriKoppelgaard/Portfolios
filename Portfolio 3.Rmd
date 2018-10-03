@@ -8,7 +8,6 @@ output:
   word_document: default
 ---
 
-
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
@@ -26,12 +25,18 @@ N.B. There are several datasets for this exercise, so pay attention to which one
 * Word data: https://www.dropbox.com/s/1ces4hv8kh0stov/token_test.csv?dl=1
 
 ```{r, include = FALSE}
-setwd("~/Cognitive Science/3. Semester/Experimental Methods 3/Portfolios/Data/")
-
 #Loading packages
 library(pacman)
 p_load(tidyverse, stringr, Metrics, caret, lme4)
 
+setwd("~/Cognitive Science/3. Semester/Experimental Methods 3/Portfolios")
+
+#Loading data
+demo_test <- read.csv("demo_test.csv")
+LU_test <- read.csv("LU_test.csv")
+token_test <- read.csv("token_test.csv")
+autism_data <- read.csv(("autism_data.csv"))
+colnames(autism_data)[2] <- "SUBJ"
 ```
 
 
@@ -44,15 +49,14 @@ How did your models from last time perform? In this exercise you have to compare
 
 ```{r,  include=FALSE}
 #The models predicting child MLU
-
-model_quadratic = lmer(CHI_MLU ~ VISIT + Diagnosis + I(VISIT^2)+(1+VISIT+ I(VISIT^2)|SUBJ), data = autism_data, REML = FALSE)
+model_quadratic = lmer(CHI_MLU ~ VISIT + Diagnosis + I(VISIT^2)+(1+VISIT+ I(VISIT^2)|SUBJ), autism_data, REML = FALSE)
 
 #Buidling a baseline model
-intercept_model =lmer(CHI_MLU ~ 1+ (1+VISIT+ I(VISIT^2)|SUBJ), data = autism_data,
+intercept_model =lmer(CHI_MLU ~ 1+ (1+VISIT+ I(VISIT^2)|SUBJ), autism_data,
 REML=FALSE)# creating the intercept model
 
 #Buidling a null model
-null_model =lmer(CHI_MLU ~ VISIT + (1+VISIT+ I(VISIT^2)|SUBJ), data = autism_data,
+null_model =lmer(CHI_MLU ~ VISIT + (1+VISIT+ I(VISIT^2)|SUBJ), autism_data,
 REML=FALSE)# creating the null model
 
 #Comparing the models using anova()
@@ -70,14 +74,6 @@ rmse(autism_data$CHI_MLU[!is.na(autism_data$CHI_MLU)], predict(model_quadratic))
 - create the test dataset (apply the code from assignment 1 part 1 to clean up the 3 test datasets)
 
 ```{r,  include=FALSE}
-
-#Loading data
-demo_test <- read.csv("demo_test.csv")
-LU_test <- read.csv("LU_test.csv")
-token_test <- read.csv("token_test.csv")
-autism_data <- read.csv(("autism_data.csv"))
-
-colnames(autism_data)[2] <- "SUBJ"
 
 #Renaming columns
 colnames(demo_test)[1] <- "SUBJ"
@@ -297,6 +293,27 @@ rmse5 <- data.frame(rmsetest_5, rmsetrain_5)
 max(rmse5$rmsetrain_5)-min(rmse5$rmsetrain_5)
 max(rmse5$rmsetest_5)-min(rmse5$rmsetest_5)
 mean(rmse5$rmsetest_5)
+
+
+#model Signe
+n=1
+rmsetrain_signe = NULL
+rmsetest_signe = NULL
+
+for (f in folds){
+  train_data <- subset(autism_data, !(SUBJ %in% f))
+  test_data <- subset(autism_data, SUBJ %in% f)
+  model_signe = lmer(CHI_MLU ~ VISIT + Diagnosis + MOT_MLU +ADOS1 + types_CHI + tokens_CHI + I(VISIT^2)+(1+VISIT+ I(VISIT^2)|SUBJ)+ (1|Gender), train_data, REML = FALSE)
+  rmsetrain_signe[n] = rmse(train_data$CHI_MLU[!is.na(train_data$CHI_MLU)], predict(model_signe))
+  rmsetest_signe[n] = rmse(test_data$CHI_MLU[!is.na(test_data$CHI_MLU)], predict(model_signe, test_data[!is.na(test_data$CHI_MLU),], allow.new.levels = TRUE))
+  n = n +1
+}
+
+rmse_signe <- data.frame(rmsetest_signe, rmsetrain_signe)
+mean(rmse_signe$rmsetrain_signe)
+mean(rmse_signe$rmsetest_signe)
+
+
 ```
 
 Which model is better at predicting new data: your model from last week or the basic model (Child MLU as a function of Time and Diagnosis, and don't forget the random effects!)?
@@ -346,11 +363,28 @@ You want to evaluate:
 (Tip: recreate the equation of the model: Y=Intercept+BetaX1+BetaX2, etc; input the average of the TD group  for each parameter in the model as X1, X2, etc.).
 
 ```{r, include = FALSE}
-summary(model_quadratic)
+summary(model_signe)
 
 
-TD1 = 0.722200 + 0.116475 + 0.541572*1 + -0.044256*1
+TD1 = -0.0917431 +  0.0337088*1 + 0.0023032+ 0.2705685 +0.0049511 + 0.0077829 +0.0001158+ (-0.0003086*1)
 TD1
+
+TD2 = -0.0917431 +  0.0337088*2 + 0.0023032+ 0.2705685 +0.0049511 + 0.0077829 +0.0001158+ (-0.0003086*4)
+TD2
+
+TD3 = -0.0917431 +  0.0337088*3 + 0.0023032+ 0.2705685 +0.0049511 + 0.0077829 +0.0001158+ (-0.0003086*9)
+TD3
+
+TD4 = -0.0917431 +  0.0337088*4 + 0.0023032+ 0.2705685 +0.0049511 + 0.0077829 +0.0001158+ (-0.0003086*16)
+TD4
+
+
+TD5 = -0.0917431 +  0.0337088*5 + 0.0023032+ 0.2705685 +0.0049511 + 0.0077829 +0.0001158+ (-0.0003086*25)
+TD5
+
+TD6 = -0.0917431 +  0.0337088*6 + 0.0023032+ 0.2705685 +0.0049511 + 0.0077829 +0.0001158+ (-0.0003086*36)
+TD6
+
 
 TD2 = 0.722199 + 0.116477 + 0.541572*2 + -0.044256*4
 TD2
@@ -377,7 +411,7 @@ Based on the quadratic model the typically developed child starts of with a mean
 - how does the child fare compared to the model predictions at Visit 6? Is the child below or above expectations? (tip: use the predict() function on Bernie's data only and compare the prediction with the actual performance of the child)
 #Is this correct?
 ```{r}
-predict(model3, bernie, allow.new.levels = TRUE)
+predict(model_quadratic, bernie, allow.new.levels = TRUE)
 ```
 Based on the best predictive model found by cross-validation, Bernie is estimated to having a mean length of utterance of 2.99 at visit. In reality he has a mean length of utterance 3.17, and thus, the model has underestimated him and predicts he has a slower development than he in reality has. 
 
@@ -409,23 +443,23 @@ data.frame(rmsetest, rmsetrain)
 
 model2 = lmer(CHI_MLU ~ VISIT + Diagnosis + verbalIQ1 + nonverbalIQ1 + I(VISIT^2)+(1+VISIT+ I(VISIT^2)|SUBJ)+ (1|Gender)+ (1|Ethnicity), data = train_data, REML = FALSE)
 
-rmsetrain[n] = rmse(autism_data$CHI_MLU[!is.na(autism_data$CHI_MLU)], predict(model_2))
-rmsetest[n] = rmse(test$CHI_MLU[!is.na(test$CHI_MLU)], predict(model_2, test[!is.na(test$CHI_MLU),], allow.new.levels = TRUE))
+rmsetrain[n] = rmse(autism_data$CHI_MLU[!is.na(autism_data$CHI_MLU)], predict(model2))
+rmsetest[n] = rmse(test$CHI_MLU[!is.na(test$CHI_MLU)], predict(model2, test[!is.na(test$CHI_MLU),], allow.new.levels = TRUE))
   
 data.frame(rmsetest, rmsetrain)
 
 #model 3
 
   model3 = lmer(CHI_MLU ~ VISIT + Diagnosis + verbalIQ1 + I(VISIT^2)+(1+VISIT+ I(VISIT^2)|SUBJ)+ (1|Gender)+ (1|Ethnicity), data = train_data, REML = FALSE)
-rmsetrain[n] = rmse(autism_data$CHI_MLU[!is.na(autism_data$CHI_MLU)], predict(model_3))
-rmsetest[n] = rmse(test$CHI_MLU[!is.na(test$CHI_MLU)], predict(model_3, test[!is.na(test$CHI_MLU),], allow.new.levels = TRUE))
+rmsetrain[n] = rmse(autism_data$CHI_MLU[!is.na(autism_data$CHI_MLU)], predict(model3))
+rmsetest[n] = rmse(test$CHI_MLU[!is.na(test$CHI_MLU)], predict(model3, test[!is.na(test$CHI_MLU),], allow.new.levels = TRUE))
   
 data.frame(rmsetest, rmsetrain)
 
 
 #model 4
 
-model4 = lmer(CHI_MLU ~ VISIT + Diagnosis + ADOS1 + verbalIQ1 + I(VISIT^2)+(1+VISIT+ I(VISIT^2)|SUBJ)+ (1|Gender)+ (1|Ethnicity), data = train_data, REML = FALSE)
+model_4 = lmer(CHI_MLU ~ VISIT + Diagnosis + ADOS1 + verbalIQ1 + I(VISIT^2)+(1+VISIT+ I(VISIT^2)|SUBJ)+ (1|Gender)+ (1|Ethnicity), data = train_data, REML = FALSE)
 
 rmsetrain[n] = rmse(autism_data$CHI_MLU[!is.na(autism_data$CHI_MLU)], predict(model_4))
 rmsetest[n] = rmse(test$CHI_MLU[!is.na(test$CHI_MLU)], predict(model_4, test[!is.na(test$CHI_MLU),], allow.new.levels = TRUE))
@@ -434,7 +468,7 @@ data.frame(rmsetest, rmsetrain)
 
 #model 5
 
-model5 = lmer(CHI_MLU ~ VISIT + Diagnosis + nonverbalIQ1 + I(VISIT^2)+(1+VISIT+ I(VISIT^2)|SUBJ)+ (1|Gender)+ (1|Ethnicity), data = train_data, REML = FALSE)
+model_5 = lmer(CHI_MLU ~ VISIT + Diagnosis + nonverbalIQ1 + I(VISIT^2)+(1+VISIT+ I(VISIT^2)|SUBJ)+ (1|Gender)+ (1|Ethnicity), data = train_data, REML = FALSE)
 
 rmsetrain[n] = rmse(autism_data$CHI_MLU[!is.na(autism_data$CHI_MLU)], predict(model_5))
 rmsetest[n] = rmse(test$CHI_MLU[!is.na(test$CHI_MLU)], predict(model_5, test[!is.na(test$CHI_MLU),], allow.new.levels = TRUE))
