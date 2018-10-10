@@ -1,0 +1,121 @@
+---
+title: "Assignment 1 - Language Development in ASD - part 4"
+author: "Riccardo Fusaroli"
+date: "August 10, 2017"
+output: html_document
+---
+
+
+## Welcome to the fourth exciting part of the Language Development in ASD exercise
+
+In this exercise we will assess how many participants we would need to adequately replicate our findings (ensuring our sample size is adequate, our alpha at 0.05 and our beta at 0.8).
+
+### Exercise 1
+
+How much power does your study have (if your model estimates are quite right)?
+- [GitHub]Load your dataset, fit your favorite model, assess power for your main effects and interactions of interest.
+```{r, include = FALSE}
+#Loading packages
+library(pacman)
+p_load(tidyverse, stringr, Metrics, caret, lme4, simr)
+
+setwd("~/Cognitive Science/3. Semester/Experimental Methods 3/Portfolios")
+
+autism_data <- read.csv(("autism_data.csv"))
+colnames(autism_data)[2] <- "SUBJ"
+
+autism_na <- na.omit(autism_data)
+
+fav_model = lmer(CHI_MLU ~ VISIT * Diagnosis * I(VISIT^2)+(1+VISIT+ I(VISIT^2)|SUBJ), autism_na, REML = FALSE)
+
+power_DiagnosisVISIT <- powerSim(fav_model, simr::fixed("VISIT:DiagnosisTD:I(VISIT^2)", method = 't'), nsim=200, seed = 1)
+
+power_DiagnosisVISIT
+```
+
+#- Report the power analysis and comment on what you can (or cannot) use its estimates for.
+The power of the fixed effect of 
+
+
+RESPONSE: 
+
+
+### Exercise 2
+
+How would you perform a more conservative power analysis?
+- Identify and justify a minimum effect size for each of your relevant effects
+```{r}
+summary(fav_model)
+```
+Relating to the summary of my favorite model. The minimal effect acceptable for 0.6 for diagnosis when going from ASD to TD and 0.2 per visit. 
+
+- [GitHub] take the model from exercise 1 and replace the effects with the minimum effect size that you'd accept.
+```{r}
+summary(fav_model)
+fixef(fav_model)["(Intercept)"] <- 0.2
+fixef(fav_model)["VISIT"] <- 0.6
+fixef(fav_model)["DiagnosisTD"] <- 0.2
+fixef(fav_model)["I(VISIT^2)"] <-0.3
+fixef(fav_model)["VISIT:DiagnosisTD"] <- 0.2
+fixef(fav_model)["VISIT:I(VISIT^2)"] <- 0.01
+fixef(fav_model)["DiagnosisTD:I(VISIT^2)"] <- 0.3
+fixef(fav_model)["VISIT:DiagnosisTD:I(VISIT^2)"] <- -0.2
+
+d <- c(0.2, 0.6, 0.2, 0.2, -0.2, -0.195, -0.69, -0.016)
+```
+
+- [GitHub] assess the power curve by Child.ID, identifying an ideal number of participants to estimate each effect
+```{r}
+powerCurveV = powerCurve(fav_model, fixed("VISIT:DiagnosisTD"),along="SUBJ", nsim=200)
+plot(powerCurveV)
+```
+
+#- [GitHub] if your power estimates do not reach an acceptable threshold simulate additional participants and repeat the previous analysis
+```{r}
+summary(fav_model)
+v <- as.matrix(VarCorr(fav_model))
+v <-  list(0.183922, 0.332352, 0.046694, 0.539, -0.765, -0.937)
+s <- sigma(fav_model)
+more_data <- makeLmer(CHI_MLU ~ VISIT * Diagnosis * I(VISIT^2)+(1+VISIT+ I(VISIT^2)|SUBJ), fixef = d, VarCorr = v, sigma = s, data = autism_data) 
+summary(more_data)
+
+powerCurveV = powerCurve(more_data, fixed("VISIT:DiagnosisTD:I(VISIT^2)"),along="SUBJ", nsim=50)
+plot(powerCurveV)
+```
+
+- Report the power analysis and comment on what you can (or cannot) use its estimates for.
+
+
+### Exercise 3
+
+Assume you have only the resources to collect 30 kids (15 with ASD and 15 TDs). Identify the power for each relevant effect and discuss whether it's worth to run the study and why
+
+```{r}
+
+
+
+#Rest: 
+
+#itm <- unique(autism_data$VISIT)
+#part <- unique(autism_data$SUBJ)
+
+#calculate the power of 100 samples of 40 participants and 40 items each
+#pow=list()
+#for (i in 1:100) {
+  print(i)
+  selectionpart <- sample(part$SUBJ,40)
+  selectionitem <- sample(itm$VISIT,40)
+  fav_model <- autism_data[which(autism_data$SUBJ %in% selectionpart & autism_data$VISIT %in% selectionitem), ]
+  fit <- lmer(CHI_MLU ~ VISIT + Diagnosis + ((1+VISIT+ I(VISIT^2)|SUBJ), data=autism_data))
+  power <- powerSim(fit, nsim=20)
+  pow[i] <- power[1]
+}
+
+
+#p <- unlist(pow)
+#p = p*5
+#mean(p)
+#hist(p)
+
+```
+
