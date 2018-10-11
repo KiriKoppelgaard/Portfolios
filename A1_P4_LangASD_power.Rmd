@@ -2,7 +2,10 @@
 title: "Assignment 1 - Language Development in ASD - part 4"
 author: "Riccardo Fusaroli"
 date: "August 10, 2017"
-output: html_document
+output:
+  word_document: default
+  pdf_document: default
+  html_document: default
 ---
 
 
@@ -14,108 +17,184 @@ In this exercise we will assess how many participants we would need to adequatel
 
 How much power does your study have (if your model estimates are quite right)?
 - [GitHub]Load your dataset, fit your favorite model, assess power for your main effects and interactions of interest.
-```{r, include = FALSE}
+```{r, include = FALSE, eval = FALSE}
 #Loading packages
 library(pacman)
-p_load(tidyverse, stringr, Metrics, caret, lme4, simr)
+#install.packages('lmerTest')
+p_load(tidyverse, stringr, Metrics, caret, lme4, simr, lmerTest, stats)
 
 setwd("~/Cognitive Science/3. Semester/Experimental Methods 3/Portfolios")
 
 autism_data <- read.csv(("autism_data.csv"))
 colnames(autism_data)[2] <- "SUBJ"
 
+#removing NA's
 autism_na <- na.omit(autism_data)
 
-fav_model = lmer(CHI_MLU ~ VISIT * Diagnosis * I(VISIT^2)+(1+VISIT+ I(VISIT^2)|SUBJ), autism_na, REML = FALSE)
+#Making diagnosis numeric
+autism_na$Diagnosis <- ifelse(autism_na$Diagnosis == "ASD", 0, 1)
+autism_na$Diagnosis <- as.numeric(autism_na$Diagnosis)
 
-power_DiagnosisVISIT <- powerSim(fav_model, simr::fixed("VISIT:DiagnosisTD:I(VISIT^2)", method = 't'), nsim=200, seed = 1)
+#Making a model
+fav_model = lmer(CHI_MLU ~ VISIT * Diagnosis + Diagnosis* I(VISIT^2)+ADOS1 + verbalIQ1 +(1+VISIT+ I(VISIT^2)|SUBJ), autism_na)
 
+summary(fav_model)
+
+#Testing the power
+power_A <- powerSim(fav_model, fixed("ADOS1", method = 't'), nsim=200)
+power_A
+power_VIQ <- powerSim(fav_model, fixed("verbalIQ", method = 't'), nsim=200)
+power_VIQ
+power_DiagnosisVISIT <- powerSim(fav_model, fixed("VISIT:Diagnosis", method = 't'), nsim=200)
 power_DiagnosisVISIT
+power_DiagnosisVISIT2 <- powerSim(fav_model, fixed("Diagnosis:I(VISIT^2)", method = 't'), nsim=200)
+power_DiagnosisVISIT2
+
+#lastResult()$errors
+
+
+#Good idea to plot for interpretation
+#Is this how you plot it?
+ggplot(autism_data, aes(x=VISIT, y = CHI_MLU)) + geom_point(alpha=0.5, aes(color = Diagnosis)) + geom_smooth(method=lm,formula=y~poly(x,2), aes(color=Diagnosis))+ theme_bw()
+
+ggplot(autism_data, aes(x=VISIT, y = CHI_MLU)) + geom_point(alpha=0.5, aes(color = Diagnosis)) + geom_smooth(method=lm,formula=y~poly(x,3), aes(color=Diagnosis))+ theme_bw()
+
+
 ```
 
-#- Report the power analysis and comment on what you can (or cannot) use its estimates for.
-The power of the fixed effect of 
-
+- Report the power analysis and comment on what you can (or cannot) use its estimates for.
 
 RESPONSE: 
-
+The power of the fixed effect of ADOS has a power of 8.00%. The power of the fixed effect of verbal IQ has a power of 0 %. The power of the fixed interaction effect of visit and diagnosis has a power of 66.5 %.  The power of the fixed interaction effect of the quadratic effect of visit and diagnosis has a power of 23.5 %. Thus, none of the effects reach the optimal power abve 80 % and thereby, the estimates from the analysis are little reliable in regards to false negatives i.e. not finding an effect, when there is one. 
 
 ### Exercise 2
 
 How would you perform a more conservative power analysis?
 - Identify and justify a minimum effect size for each of your relevant effects
-```{r}
+```{r, include = FALSE, eval = FALSE}
 summary(fav_model)
+#Inflate random effects, good idea, since in the real world there is more data
 ```
-Relating to the summary of my favorite model. The minimal effect acceptable for 0.6 for diagnosis when going from ASD to TD and 0.2 per visit. 
 
 - [GitHub] take the model from exercise 1 and replace the effects with the minimum effect size that you'd accept.
-```{r}
+```{r, include = FALSE, eval = FALSE}
 summary(fav_model)
-fixef(fav_model)["(Intercept)"] <- 0.2
-fixef(fav_model)["VISIT"] <- 0.6
-fixef(fav_model)["DiagnosisTD"] <- 0.2
-fixef(fav_model)["I(VISIT^2)"] <-0.3
-fixef(fav_model)["VISIT:DiagnosisTD"] <- 0.2
-fixef(fav_model)["VISIT:I(VISIT^2)"] <- 0.01
-fixef(fav_model)["DiagnosisTD:I(VISIT^2)"] <- 0.3
-fixef(fav_model)["VISIT:DiagnosisTD:I(VISIT^2)"] <- -0.2
 
-d <- c(0.2, 0.6, 0.2, 0.2, -0.2, -0.195, -0.69, -0.016)
+fixef(fav_model)["verbalIQ1"] <- 0.1
+fixef(fav_model)["ADOS1"] <- -0.01
+fixef(fav_model)["VISIT:Diagnosis"] <- 0.5
+fixef(fav_model)["Diagnosis:I(VISIT^2)"] <- -0.03
+
+power_A <- powerSim(fav_model, fixed("ADOS1", method = 't'), nsim=200)
+power_A
+power_VIQ <- powerSim(fav_model, fixed("verbalIQ", method = 't'), nsim=200)
+power_VIQ
+power_DiagnosisVISIT <- powerSim(fav_model, fixed("VISIT:Diagnosis", method = 't'), nsim=200)
+power_DiagnosisVISIT
+power_DiagnosisVISIT2 <- powerSim(fav_model, fixed("Diagnosis:I(VISIT^2)", method = 't'), nsim=200)
+power_DiagnosisVISIT2
+
+lastresults()$error
 ```
 
 - [GitHub] assess the power curve by Child.ID, identifying an ideal number of participants to estimate each effect
-```{r}
-powerCurveV = powerCurve(fav_model, fixed("VISIT:DiagnosisTD"),along="SUBJ", nsim=200)
-plot(powerCurveV)
+```{r, include = FALSE, echo = TRUE, eval = FALSE}
+
+#Making power curves
+powerCurveA = powerCurve(fav_model, fixed("ADOS1"),along="SUBJ", nsim=200)
+powerCurveVIQ = powerCurve(fav_model, fixed("verbalIQ1"),along="SUBJ", nsim=200)
+powerCurveDV = powerCurve(fav_model, fixed("VISIT:Diagnosis"),along="SUBJ", nsim=200)
+powerCurveDV2 = powerCurve(fav_model, fixed("Diagnosis:I(VISIT^2)"),along="SUBJ", nsim=200)
+
+#Plotting power curves
+plot(powerCurveA)
+plot(powerCurveVIQ)
+plot(powerCurveDV)
+plot(powerCurveDV2)
 ```
 
-#- [GitHub] if your power estimates do not reach an acceptable threshold simulate additional participants and repeat the previous analysis
-```{r}
-summary(fav_model)
-v <- as.matrix(VarCorr(fav_model))
-v <-  list(0.183922, 0.332352, 0.046694, 0.539, -0.765, -0.937)
-s <- sigma(fav_model)
-more_data <- makeLmer(CHI_MLU ~ VISIT * Diagnosis * I(VISIT^2)+(1+VISIT+ I(VISIT^2)|SUBJ), fixef = d, VarCorr = v, sigma = s, data = autism_data) 
-summary(more_data)
+- [GitHub] if your power estimates do not reach an acceptable threshold simulate additional participants and repeat the previous analysis
+```{r, include = FALSE, eval = FALSE}
 
-powerCurveV = powerCurve(more_data, fixed("VISIT:DiagnosisTD:I(VISIT^2)"),along="SUBJ", nsim=50)
-plot(powerCurveV)
+#Trying to simulate more data
+#fixef(fav_model)["(Intercept)"] <- 0.2
+#fixef(fav_model)["VISIT"] <- 0.6
+#fixef(fav_model)["DiagnosisTD"] <- 0.2
+#fixef(fav_model)["I(VISIT^2)"] <-0.3
+#fixef(fav_model)["VISIT:DiagnosisTD"] <- 0.2
+#fixef(fav_model)["VISIT:I(VISIT^2)"] <- 0.01
+#fixef(fav_model)["DiagnosisTD:I(VISIT^2)"] <- 0.3
+#fixef(fav_model)["VISIT:DiagnosisTD:I(VISIT^2)"] <- -0.2
+
+#d <- c(0.2, 0.6, 0.2, 0.2, -0.2, -0.195, -0.69, -0.016)
+
+#summary(fav_model)
+#VarCorr(fav_model)
+#v <-  list(0.341, 0.332, 0.047, -0.648, 0.494, -0.935)
+#s <- sigma(fav_model)
+#more_data <- makeLmer(CHI_MLU ~ VISIT * Diagnosis * I(VISIT^2)+(1+VISIT+ I(VISIT^2)|SUBJ), fixef = d, VarCorr = v, sigma = s, data = autism_data) 
+#summary(more_data)
+
+#powerCurveV = powerCurve(more_data, fixed("VISIT:DiagnosisTD:I(VISIT^2)"),along="SUBJ", nsim=200)
+#plot(powerCurveV)
 ```
 
 - Report the power analysis and comment on what you can (or cannot) use its estimates for.
+RESPONSE: 
 
+Based on the betas from the summary of my favorite model, I have estimated the minimal effect size. The minimal effect acceptable for the main effect verbal IQ is 0.1. For the the main effect of the ADOS score it is -0.01. For the interaction effect between visit and diagnosis it is 0.5, and for the interaction effect between diagnosis and the quadratic effect of visit it is - 0.03. These effect sizes are slightly more conservative, than the ones used in the previous study. Since they are based on the effect, each effect has at the current moment. 
+
+#I would love to argue better for this, but I have difficulties understanding exactly, what this means. Maybe you could come up with an example, please?  
+
+In principle using these more conservative minimum acceptable effect sizes should further decreases the power of the fixed effects. This is however not the case (very strange). As seen in the power plots below, only the interaction effect between diagnosis and visit has enough power to provide a reliable beta. This is however not enough to produces a reliable analysis altogether (Should you take the mean of the power of all the effects to asses whether it is enough power or?)
+
+Thus, it would be a good idea to simulate additional participants. But something is up with the code. I have made a suggestion: https://github.com/KiriKoppelgaard/Portfolios
 
 ### Exercise 3
 
 Assume you have only the resources to collect 30 kids (15 with ASD and 15 TDs). Identify the power for each relevant effect and discuss whether it's worth to run the study and why
 
-```{r}
+```{r, include = FALSE, eval= FALSE}
+ASD <- filter(autism_na,Diagnosis == "0")
+ASD15 <- sample(unique(ASD$SUBJ),15)
+dataASD <- filter(ASD, SUBJ %in% ASD15)
+unique(dataASD$SUBJ)
 
+TD <- filter(autism_na,Diagnosis == "1")
+TD15 <- sample(unique(TD$SUBJ),15)
+dataTD <- filter(TD, SUBJ %in% TD15)
+unique(dataTD$SUBJ)
 
+new_data <- rbind(dataASD,dataTD)
 
-#Rest: 
+#Making a model
+fav_model2 = lmer(CHI_MLU ~ VISIT * Diagnosis + Diagnosis* I(VISIT^2)+ADOS1 + verbalIQ1 +(1+VISIT+ I(VISIT^2)|SUBJ), new_data)
 
-#itm <- unique(autism_data$VISIT)
-#part <- unique(autism_data$SUBJ)
+summary(fav_model2)
 
-#calculate the power of 100 samples of 40 participants and 40 items each
-#pow=list()
-#for (i in 1:100) {
-  print(i)
-  selectionpart <- sample(part$SUBJ,40)
-  selectionitem <- sample(itm$VISIT,40)
-  fav_model <- autism_data[which(autism_data$SUBJ %in% selectionpart & autism_data$VISIT %in% selectionitem), ]
-  fit <- lmer(CHI_MLU ~ VISIT + Diagnosis + ((1+VISIT+ I(VISIT^2)|SUBJ), data=autism_data))
-  power <- powerSim(fit, nsim=20)
-  pow[i] <- power[1]
-}
+#Testing power
+power_ADOS<- powerSim(fav_model2, fixed("ADOS1", method = 't'), nsim=200)
+power_ADOS
+power_verbalIQ <- powerSim(fav_model2, fixed("verbalIQ1", method = 't'), nsim=200)
+power_verbalIQ
+power_DiagnosisVISIT <- powerSim(fav_model2, fixed("VISIT:Diagnosis", method = 't'), nsim=200)
+power_DiagnosisVISIT
+power_DiagnosisVISIT2 <- powerSim(fav_model2, fixed("Diagnosis:I(VISIT^2)", method = 't'), nsim=200)
+power_DiagnosisVISIT2
 
+#Making powercurves
+powerCurveA1 = powerCurve(fav_model2, fixed("ADOS1"),along="SUBJ", nsim=200)
+powerCurveVIQ1 = powerCurve(fav_model2, fixed("verbalIQ1"),along="SUBJ", nsim=200)
+powerCurveDV1 = powerCurve(fav_model2, fixed("VISIT:Diagnosis"),along="SUBJ", nsim=200)
+powerCurveDV21 = powerCurve(fav_model2, fixed("Diagnosis:I(VISIT^2)"),along="SUBJ", nsim=200)
 
-#p <- unlist(pow)
-#p = p*5
-#mean(p)
-#hist(p)
+#Plotting power curves
+plot(powerCurveA1)
+plot(powerCurveVIQ1)
+plot(powerCurveDV1)
+plot(powerCurveDV21)
 
 ```
 
+RESPONSE: 
+Neither of the fixed effects reach the required power of 80 %. Thus, without further participants, there is a reasonable risk of unreliable beta values and false negatives. 
