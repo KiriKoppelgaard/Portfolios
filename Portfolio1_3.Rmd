@@ -1,0 +1,508 @@
+---
+title: "Portfolio 1_3"
+author: "Kiri Koppelgaard"
+date: "September 28, 2018"
+output:
+  html_document: default
+  pdf_document: default
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+options(warn=-1)
+
+```
+
+## Welcome to the third exciting part of the Language Development in ASD exercise
+
+For code see: 
+
+In this exercise we will delve more in depth with different practices of model comparison and model selection, by first evaluating your models from last time, then learning how to cross-validate models and finally how to systematically compare models.
+
+N.B. There are several datasets for this exercise, so pay attention to which one you are using!
+
+1. The (training) dataset from last time (the awesome one you produced :-) ).
+2. The (test) datasets on which you can test the models from last time:
+* Demographic and clinical data: https://www.dropbox.com/s/ra99bdvm6fzay3g/demo_test.csv?dl=1
+* Utterance Length data: https://www.dropbox.com/s/uxtqqzl18nwxowq/LU_test.csv?dl=1
+* Word data: https://www.dropbox.com/s/1ces4hv8kh0stov/token_test.csv?dl=1
+
+```{r, include = FALSE}
+#Loading packages
+library(pacman)
+p_load(tidyverse, stringr, Metrics, caret, lme4)
+
+setwd("~/Cognitive Science/3. Semester/Experimental Methods 3/Portfolios")
+
+#Loading data
+demo_test <- read.csv("demo_test.csv")
+LU_test <- read.csv("LU_test.csv")
+token_test <- read.csv("token_test.csv")
+autism_data <- read.csv(("Data/autism_data.csv"))
+colnames(autism_data)[2] <- "SUBJ"
+```
+
+
+### Exercise 1) Testing model performance
+
+How did your models from last time perform? In this exercise you have to compare the results on the training data () and on the test data. Report both of them. Compare them. Discuss why they are different.
+
+- recreate the models you chose last time (just write the model code again and apply it to your training data (from the first assignment))
+
+
+```{r,  include=FALSE}
+#The models predicting child MLU
+bestmodel2 = lmer(CHI_MLU ~ VISIT * Diagnosis + I(VISIT^2)*Diagnosis+ verbalIQ1 + nonverbalIQ1 +(1+VISIT+ I(VISIT^2)|SUBJ), data = autism_data, REML = FALSE)
+
+#Buidling a baseline model
+intercept_model =lmer(CHI_MLU ~ 1+ (1+VISIT+ I(VISIT^2)|SUBJ), autism_data,
+REML=FALSE)# creating the intercept model
+
+#Buidling a null model
+null_model =lmer(CHI_MLU ~ VISIT + (1+VISIT+ I(VISIT^2)|SUBJ), autism_data,
+REML=FALSE)# creating the null model
+
+#Comparing the models using anova()
+anova(null_model,intercept_model, bestmodel2)
+
+```
+
+- calculate performance of the model on the training data: root mean square error is a good measure. (Tip: google the function rmse())
+
+
+```{r,  include=FALSE}
+rmse(autism_data$CHI_MLU[!is.na(autism_data$CHI_MLU)], predict(bestmodel2))
+```
+
+- create the test dataset (apply the code from assignment 1 part 1 to clean up the 3 test datasets)
+
+```{r,  include=FALSE}
+
+#Renaming columns
+colnames(demo_test)[1] <- "SUBJ"
+colnames(demo_test)[2] <- "VISIT"
+
+#Extracting numbers out of strings
+LU_test$VISIT <- str_extract(LU_test$VISIT, "\\d")
+token_test$VISIT <- str_extract(token_test$VISIT, "\\d")
+
+#removing special characters
+LU_test$SUBJ <- str_replace_all(LU_test$SUBJ, pattern = "[[:punct:]]", replacement ="") 
+token_test$SUBJ <- str_replace_all(token_test$SUBJ, pattern = "[[:punct:]]", replacement ="")
+demo_test$SUBJ <- str_replace_all(demo_test$SUBJ, pattern = "[[:punct:]]", replacement ="") 
+
+#merging the data
+test <- full_join(token_test,LU_test)
+test$VISIT <- as.numeric(test$VISIT)
+test <- full_join(test,demo_test)
+
+#selecting relevant columns
+test <- test %>% 
+  as_data_frame %>%
+  select(SUBJ, VISIT, Ethnicity, Diagnosis, Gender, Age, ADOS,  MullenRaw, ExpressiveLangRaw, MOT_MLU, MOT_LUstd, CHI_MLU, CHI_LUstd, types_MOT, types_CHI, tokens_MOT, tokens_CHI)
+
+#Renaming columns
+colnames(test)[8] <- "nonVerbalIQ"
+colnames(test)[9] <- "verbalIQ"
+
+#Creating a subset of data from visit 1
+test_subset <- subset(test, VISIT == 1)
+test_filter <- filter(test, VISIT == "1")
+
+#Renaming columns
+colnames(test_subset)[7] <- "ADOS1"
+colnames(test_subset)[8] <- "nonverbalIQ1"
+colnames(test_subset)[9] <- "verbalIQ1"
+
+#Selecting relevant columns
+test_subset <- test_subset %>% 
+ as_data_frame %>%
+ select(SUBJ, ADOS1,  nonverbalIQ1, verbalIQ1)
+
+#Merging subset with final data set
+test <- merge(test,test_subset, by = "SUBJ")
+
+#Selecting relevant columns and arranging in correct order
+test <- test %>% 
+ as_data_frame %>%
+  select(SUBJ, Diagnosis, Gender, Age, Ethnicity, VISIT,  ADOS1,  nonverbalIQ1, verbalIQ1, MOT_MLU, MOT_LUstd, CHI_MLU, CHI_LUstd, types_MOT, types_CHI, tokens_MOT, tokens_CHI)
+
+
+#Alternative
+#test <- as.integer(as.factor(test$SUBJ))
+
+#Selecting relevant columns and arranging in correct order
+test <- test %>% 
+ as_data_frame %>%
+  select(SUBJ, Gender, Age, Diagnosis, Ethnicity, VISIT,  ADOS1,  nonverbalIQ1, verbalIQ1, MOT_MLU, MOT_LUstd, CHI_MLU, CHI_LUstd, types_MOT, types_CHI, tokens_MOT, tokens_CHI)
+
+#Gender specification
+test <- mutate(test, Gender = ifelse(Gender  %in% c("1"), "M", "F"))
+
+#levels(test$Gender) <- c("F", "M")
+
+#Diagonosis specification
+test <- mutate(test, Diagnosis = ifelse(Diagnosis  %in% c("A"), "ASD", "TD"))
+
+```
+
+
+- test the performance of the models on the test data (Tips: google the functions "predict()")
+
+```{r,  include=FALSE}
+rmse(test$CHI_MLU[!is.na(test$CHI_MLU)], predict(bestmodel2, test[!is.na(test$CHI_MLU),], allow.new.levels = TRUE))
+#RMSE(autism_data$CHI_MLU, predictions)
+```
+
+- optional: predictions are never certain, can you identify the uncertainty of the predictions? (e.g. google predictinterval())
+
+formatting tip: If you write code in this document and plan to hand it in, remember to put include=FALSE in the code chunks before handing in.
+
+REPONSE: 
+The best model from last assignment: CHI_MLU ~ VISIT * Diagnosis + I(VISIT^2)*Diagnosis+ verbalIQ1 + nonverbalIQ1 +(1+VISIT+ I(VISIT^2)|SUBJ) produces a root mean square error of 0.291, when explaining the train data.The mean squared error increases when applying the model on the test set and goes from  0.291 to 0.539. Since the test data (signal and noise) is different from the data the model has been trained on, it is fair that the root mean square error increases. The increase appears to be relatively small, this could imply it is merely the noise of the data, which is different - not the signal, we wish to measure. Maybe it is a ok model! :) 
+
+### Exercise 2) Model Selection via Cross-validation (N.B: ChildMLU!)
+
+One way to reduce bad surprises when testing a model on new data is to train the model via cross-validation. 
+
+In this exercise you have to use cross-validation to calculate the predictive error of your models and use this predictive error to select the best possible model.
+
+- Use cross-validation to compare your model from last week with the basic model (Child MLU as a function of Time and Diagnosis, and don't forget the random effects!)
+- (Tips): google the function "createFolds";  loop through each fold, train both models on the other folds and test them on the fold)
+
+```{r, include = FALSE}
+
+folds <- createFolds(unique(autism_data$SUBJ),10)
+folds
+
+rmse_list=data.frame() 
+
+#simple model
+
+n=1
+rmsetrain = NULL
+rmsetest = NULL
+
+for (f in folds){
+  train_data <- subset(autism_data, !(SUBJ %in% f))
+  test_data <- subset(autism_data, SUBJ %in% f)
+  model_simple = lmer(CHI_MLU ~ VISIT + Diagnosis+(VISIT+ I(VISIT^2)|SUBJ), data = train_data, REML = FALSE)
+  rmsetrain[n] = rmse(train_data$CHI_MLU[!is.na(train_data$CHI_MLU)], predict(model_simple))
+  rmsetest[n] = rmse(test_data$CHI_MLU[!is.na(test_data$CHI_MLU)], predict(model_simple, test_data[!is.na(test_data$CHI_MLU),], allow.new.levels = TRUE))
+  n = n +1
+}
+
+rmse <- data.frame(rmsetest, rmsetrain)
+max(rmse$rmsetrain)-min(rmse$rmsetrain)
+max(rmse$rmsetest)-min(rmse$rmsetest)
+mean(rmse$rmsetest)
+
+#Best model (fra sidste portfolio)
+
+n=1
+rmsetrain_1 = NULL
+rmsetest_1 = NULL
+
+for (f in folds){
+  train_data <- subset(autism_data, !(SUBJ %in% f))
+  test_data <- subset(autism_data, SUBJ %in% f)
+  bestmodel2 = lmer(CHI_MLU ~ VISIT * Diagnosis + I(VISIT^2)*Diagnosis+ verbalIQ1 + nonverbalIQ1 +(1+VISIT+ I(VISIT^2)|SUBJ), data = train_data, REML = FALSE)
+  rmsetrain_1[n] = rmse(train_data$CHI_MLU[!is.na(train_data$CHI_MLU)], predict(bestmodel2))
+  rmsetest_1[n] = rmse(test_data$CHI_MLU[!is.na(test_data$CHI_MLU)], predict(bestmodel2, test_data[!is.na(test_data$CHI_MLU),], allow.new.levels = TRUE))
+  n = n +1
+}
+rmse1 <- data.frame(rmsetest_1, rmsetrain_1)
+max(rmse1$rmsetrain_1)-min(rmse1$rmsetrain_1)
+max(rmse1$rmsetest_1)-min(rmse1$rmsetest_1)
+mean(rmse1$rmsetest_1)
+
+#model 2
+
+n=1
+rmsetrain_2 = NULL
+rmsetest_2 = NULL
+
+for (f in folds){
+  train_data <- subset(autism_data, !(SUBJ %in% f))
+  test_data <- subset(autism_data, SUBJ %in% f)
+  model2 = lmer(CHI_MLU ~ VISIT + Diagnosis + verbalIQ1 + nonverbalIQ1 + I(VISIT^2)+(1+VISIT+ I(VISIT^2)|SUBJ)+ (1|Gender)+ (1|Ethnicity), data = train_data, REML = FALSE)
+  rmsetrain_2[n] = rmse(train_data$CHI_MLU[!is.na(train_data$CHI_MLU)], predict(model2))
+  rmsetest_2[n] = rmse(test_data$CHI_MLU[!is.na(test_data$CHI_MLU)], predict(model2, test_data[!is.na(test_data$CHI_MLU),], allow.new.levels = TRUE))
+  n = n +1
+}
+rmse2 <- data.frame(rmsetest_2, rmsetrain_2)
+max(rmse2$rmsetrain_2)-min(rmse2$rmsetrain_2)
+max(rmse2$rmsetest_2)-min(rmse2$rmsetest_2)
+
+mean(rmse2$rmsetest_2)
+
+#model 3
+
+n=1
+rmsetrain_3 = NULL
+rmsetest_3 = NULL
+
+for (f in folds){
+  train_data <- subset(autism_data, !(SUBJ %in% f))
+  test_data <- subset(autism_data, SUBJ %in% f)
+  model3 = lmer(CHI_MLU ~ VISIT + Diagnosis + verbalIQ1 + I(VISIT^2)+(1+VISIT+ I(VISIT^2)|SUBJ)+ (1|Gender)+ (1|Ethnicity), data = train_data, REML = FALSE)
+  rmsetrain_3[n] = rmse(train_data$CHI_MLU[!is.na(train_data$CHI_MLU)], predict(model3))
+  rmsetest_3[n] = rmse(test_data$CHI_MLU[!is.na(test_data$CHI_MLU)], predict(model3, test_data[!is.na(test_data$CHI_MLU),], allow.new.levels = TRUE))
+  n = n +1
+}
+rmse3 <- data.frame(rmsetest_3, rmsetrain_3)
+max(rmse3$rmsetrain_3)-min(rmse3$rmsetrain_3)
+max(rmse3$rmsetest_3)-min(rmse3$rmsetest_3)
+mean(rmse3$rmsetest_3)
+
+
+#model 4
+
+n=1
+rmsetrain_4 = NULL
+rmsetest_4 = NULL
+
+for (f in folds){
+  train_data <- subset(autism_data, !(SUBJ %in% f))
+  test_data <- subset(autism_data, SUBJ %in% f)
+  model4 = lmer(CHI_MLU ~ VISIT + Diagnosis + ADOS1 + verbalIQ1 + I(VISIT^2)+(1+VISIT+ I(VISIT^2)|SUBJ)+ (1|Gender)+ (1|Ethnicity), data = train_data, REML = FALSE)
+  rmsetrain_4[n] = rmse(train_data$CHI_MLU[!is.na(train_data$CHI_MLU)], predict(model4))
+  rmsetest_4[n] = rmse(test_data$CHI_MLU[!is.na(test_data$CHI_MLU)], predict(model4, test_data[!is.na(test_data$CHI_MLU),], allow.new.levels = TRUE))
+  n = n +1
+}
+rmse4 <- data.frame(rmsetest_4, rmsetrain_4)
+max(rmse4$rmsetrain_4)-min(rmse4$rmsetrain_4)
+max(rmse4$rmsetest_4)-min(rmse4$rmsetest_4)
+mean(rmse4$rmsetest_4)
+
+
+#model 5
+n=1
+rmsetrain_5 = NULL
+rmsetest_5 = NULL
+
+for (f in folds){
+  train_data <- subset(autism_data, !(SUBJ %in% f))
+  test_data <- subset(autism_data, SUBJ %in% f)
+  model5 = lmer(CHI_MLU ~ VISIT + Diagnosis + nonverbalIQ1 + I(VISIT^2)+(1+VISIT+ I(VISIT^2)|SUBJ)+ (1|Gender)+ (1|Ethnicity), data = train_data, REML = FALSE)
+  rmsetrain_5[n] = rmse(train_data$CHI_MLU[!is.na(train_data$CHI_MLU)], predict(model5))
+  rmsetest_5[n] = rmse(test_data$CHI_MLU[!is.na(test_data$CHI_MLU)], predict(model5, test_data[!is.na(test_data$CHI_MLU),], allow.new.levels = TRUE))
+  n = n +1
+}
+rmse5 <- data.frame(rmsetest_5, rmsetrain_5)
+max(rmse5$rmsetrain_5)-min(rmse5$rmsetrain_5)
+max(rmse5$rmsetest_5)-min(rmse5$rmsetest_5)
+mean(rmse5$rmsetest_5)
+
+```
+
+- Test both of them on the test data.
+```{r, include = FALSE}
+#simple model tested on real test data
+rmse(test$CHI_MLU[!is.na(test$CHI_MLU)], predict(model_simple, test[!is.na(test$CHI_MLU),], allow.new.levels = TRUE))
+
+#best model
+bestmodel2 = lmer(CHI_MLU ~ VISIT * Diagnosis + I(VISIT^2)*Diagnosis+ verbalIQ1 + nonverbalIQ1 +(1+VISIT+ I(VISIT^2)|SUBJ), data = train_data, REML = FALSE)
+
+rmse(test$CHI_MLU[!is.na(test$CHI_MLU)], predict(bestmodel2, test[!is.na(test$CHI_MLU),], allow.new.levels = TRUE))
+
+#RMSE(autism_data$CHI_MLU, predictions)
+```
+
+- Report the results and comment on them.
+
+- Now try to find the best possible predictive model of ChildMLU, that is, the one that produces the best cross-validated results.
+
+- Which model is better at predicting new data: the one you selected last week or the one chosen via cross-validation this week?
+
+- Bonus Question 1: What is the effect of changing the number of folds? Can you plot RMSE as a function of number of folds?
+- Bonus Question 2: compare the cross-validated predictive error against the actual predictive error on the test data
+
+RESPONSE: 
+The simple model (mean length of utterance ~ visit + diagnosis + (VISIT+ I(VISIT^2)|SUBJ)) produces a mean squared error of 0.818, when applied to the test data compared to 0.636 produced by the best explaining model from last time (CHI_MLU ~ VISIT * Diagnosis + I(VISIT^2)*Diagnosis+ verbalIQ1 + nonverbalIQ1 +(1+VISIT+ I(VISIT^2)|SUBJ)).Thus, the best model is still the last mentioned, which is able to predict the new data the best. Thus, it does not appear that the fancy model does not overfit as could have been expected. 
+
+Based on the mean of the mean squared errors, when applied to the cross-validated test data, the best predictive model is still the best performing model from last assignment. 
+
+### Exercise 3) Assessing the single child
+
+Let's get to business. This new kiddo - Bernie - has entered your clinic. This child has to be assessed according to his group's average and his expected development.
+
+Bernie is one of the six kids in the test dataset, so make sure to extract that child alone for the following analysis.
+
+```{r, include = FALSE}
+bernie <- filter(test, SUBJ == "Bernie")
+```
+
+You want to evaluate:
+
+- how does the child fare in ChildMLU compared to the average TD child at each visit? Define the distance in terms of absolute difference between this Child and the average TD.
+(Tip: recreate the equation of the model: Y=Intercept+BetaX1+BetaX2, etc; input the average of the TD group  for each parameter in the model as X1, X2, etc.).
+
+```{r, include = FALSE}
+summary(bestmodel2)
+
+TDsubset <- subset(autism_data,Diagnosis == "TD")
+
+
+TD_verbalIQ <- mean(TDsubset$verbalIQ1,na.rm=TRUE)
+TD_nonverbalIQ <- mean(TDsubset$nonverbalIQ1, na.rm = TRUE)
+
+TD1 = (-0.012637) + 0.299812*1 +(-0.027307*(1^2))+0.643130*1 +0.066371*TD_verbalIQ + 0.004702*TD_nonverbalIQ + 0.447788*1*1 + (-0.028735)*1*(1^2)
+TD1 #2.780916
+
+TD2 = (-0.012637) + 0.299812*2 +(-0.027307*(2^2))+0.643130*1 +0.066371*TD_verbalIQ + 0.004702*TD_nonverbalIQ + 0.447788*2*1 + (-0.028735)*1*(2^2)
+TD2 # 3.36039
+
+TD3 = (-0.012637) + 0.299812*3 +(-0.027307*(3^2))+0.643130*1 +0.066371*TD_verbalIQ + 0.004702*TD_nonverbalIQ + 0.447788*3*1 + (-0.028735)*1*(3^2)
+TD3 # 3.82778
+
+TD4 = (-0.012637) + 0.299812*4 +(-0.027307*(4^2))+0.643130*1 +0.066371*TD_verbalIQ + 0.004702*TD_nonverbalIQ + 0.447788*4*1 + (-0.028735)*1*(4^2)
+TD4 #4.183086
+
+TD5 = (-0.012637) + 0.299812*5 +(-0.027307*(5^2))+0.643130*1 +0.066371*TD_verbalIQ + 0.004702*TD_nonverbalIQ + 0.447788*5*1 + (-0.028735)*1*(5^2)
+TD5 #4.426308
+
+TD6 = (-0.012637) + 0.299812*6 +(-0.027307*(6^2))+0.643130*1 +0.066371*TD_verbalIQ + 0.004702*TD_nonverbalIQ + 0.447788*6*1 + (-0.028735)*1*(6^2)
+TD6 # 4.557446
+
+```
+
+```{r, include = FALSE}
+data.frame(TD1, TD2, TD3, TD4, TD5, TD6)
+bernie$CHI_MLU
+
+TD6-TD1
+```
+- how does the child fare compared to the model predictions at Visit 6? Is the child below or above expectations? (tip: use the predict() function on Bernie's data only and compare the prediction with the actual performance of the child)
+
+```{r, include = FALSE}
+data_without_bernie = filter(test, !(SUBJ == "Bernie" & VISIT == 6))
+data_bernie_6 = filter(test, (SUBJ == "Bernie" & VISIT == 6))
+bernie_model = lmer(bestmodel2, data = data_without_bernie)
+predict(bernie_model, newdata = data_bernie_6, allow.new.levels = TRUE)
+
+Bernie <- filter(test, (SUBJ == "Bernie"))
+summary(bestmodel2)
+
+#Saras kode
+# plotting model predictions - MALTE
+ TD = filter(data_without_bernie, Diagnosis == "TD")
+ TD = TD[-1]
+ 
+ bestmodel2 = lmer(CHI_MLU ~ VISIT * Diagnosis + I(VISIT^2)*Diagnosis+ verbalIQ1 + nonverbalIQ1 +(1+VISIT+ I(VISIT^2)|SUBJ), data = train_data, REML = FALSE)
+```
+
+Based on the best model from the cross-validation the typically developed child starts of with a mean length of utterance on 2.17, whereas Bernie starts 2.54. Thus, Bernie makes longer utterances when entering the experiment. At the 6th visit Bernie has a mean length of utterance of 3.17, whereas a typically developed child has a mean length of utterance of 2.40. Thus, Bernie is pretty genius. He both starts of with a higher MLU and develops faster, it would seem. This is also seen in the figure below, showing Bernie in relation to TD children.  
+
+
+Based on the best predictive model found by cross-validation, Bernie is estimated to having a mean length of utterance of 3.22 at visit 6, which is relatively close to the measurement of Bernie at 6th visit, which was  3.45. The model has slightly overestimated him and predicts he has a faster development than he in reality has, but it is close. This is also seen in the plot below. 
+
+
+```{r, echo = FALSE}
+ # make fake data to represent the average
+ expand.grid(VISIT = 1:6,
+             SUBJ = "TD",
+             Diagnosis = "TD",
+            ADOS1 = mean(TD$ADOS1),
+            verbalIQ1 = mean(TD$verbalIQ1), 
+            nonverbalIQ1 = mean(TD$nonverbalIQ1)) %>%
+  # make predictions based on this fake data
+  mutate(CHI_MLU = predict(bestmodel2, newdata = ., allow.new.levels = TRUE)) %>%
+  # plot those predictions
+  ggplot(aes(VISIT, CHI_MLU, colour = "Model Average for \n Typically Developing Children \n (CHI_MLU ~ VISIT * Diagnosis + I(VISIT^2)\n*Diagnosis+ verbalIQ1 + nonverbalIQ1\n +(1+VISIT+ I(VISIT^2)|SUBJ))")) +
+  geom_line() +
+  geom_point(aes(colour = "Data Points for Bernie"), data = Bernie) +
+  labs(x = "Visit", y = "Child MLU", title = "TD children vs. Bernie") +
+  scale_colour_brewer(palette = "Dark2") +
+  theme(legend.title=element_blank())
+
+#plotting Bernie predictions
+Bernie %>%
+  # make predictions based on this fake data
+  mutate(CHI_MLU = predict(bernie_model, newdata = ., allow.new.levels = TRUE)) %>%
+  # plot those predictions
+  ggplot(aes(VISIT, CHI_MLU, colour = "Model Predictions for Bernie \n (child MLU ~ diagnosis * (visit + visit^2) + \n ADOS + verbal IQ + (visit + visit^2|subject))")) +
+  geom_line() +
+  geom_point(aes(colour = "Data Points for Bernie"), data = Bernie) +
+  labs(x = "Visit", y = "Child MLU", title = "Prediction for Bernie and Bernie") +
+  scale_colour_brewer(palette = "Dark2") + theme(legend.title=element_blank())
+
+```
+
+
+
+
+Link to code: https://github.com/KiriKoppelgaard/Portfolios/blob/master/Portfolio%203.Rmd
+
+### OPTIONAL: Exercise 4) Model Selection via Information Criteria
+Another way to reduce the bad surprises when testing a model on new data is to pay close attention to the relative information criteria between the models you are comparing. Let's learn how to do that!
+
+Re-create a selection of possible models explaining ChildMLU (the ones you tested for exercise 2, but now trained on the full dataset and not cross-validated).
+
+```{r, include = FALSE}
+
+#simple model
+model_quadratic = lmer(CHI_MLU ~ VISIT + Diagnosis + I(VISIT^2)+(1+VISIT+ I(VISIT^2)|SUBJ), data = autism_data, REML = FALSE)
+
+rmsetrain[n] = rmse(autism_data$CHI_MLU[!is.na(autism_data$CHI_MLU)], predict(model_quadratic))
+rmsetest[n] = rmse(test$CHI_MLU[!is.na(test$CHI_MLU)], predict(model_quadratic, test[!is.na(test$CHI_MLU),], allow.new.levels = TRUE))
+  
+data.frame(rmsetest, rmsetrain)
+
+#model 11 (fra sidste portfolio)
+model_11 = lmer(CHI_MLU ~ VISIT + Diagnosis  + ADOS1 + verbalIQ1 + nonverbalIQ1 + I(VISIT^2)+(1+VISIT+ I(VISIT^2)|SUBJ)+ (1|Gender)+ (1|Ethnicity), data = train_data, REML = FALSE)
+
+rmsetrain[n] = rmse(autism_data$CHI_MLU[!is.na(autism_data$CHI_MLU)], predict(model_11))
+rmsetest[n] = rmse(test$CHI_MLU[!is.na(test$CHI_MLU)], predict(model_11, test[!is.na(test$CHI_MLU),], allow.new.levels = TRUE))
+  
+data.frame(rmsetest, rmsetrain)
+
+#model 2
+
+model2 = lmer(CHI_MLU ~ VISIT + Diagnosis + verbalIQ1 + nonverbalIQ1 + I(VISIT^2)+(1+VISIT+ I(VISIT^2)|SUBJ)+ (1|Gender)+ (1|Ethnicity), data = train_data, REML = FALSE)
+
+rmsetrain[n] = rmse(autism_data$CHI_MLU[!is.na(autism_data$CHI_MLU)], predict(model2))
+rmsetest[n] = rmse(test$CHI_MLU[!is.na(test$CHI_MLU)], predict(model2, test[!is.na(test$CHI_MLU),], allow.new.levels = TRUE))
+  
+data.frame(rmsetest, rmsetrain)
+
+#model 3
+
+  model3 = lmer(CHI_MLU ~ VISIT + Diagnosis + verbalIQ1 + I(VISIT^2)+(1+VISIT+ I(VISIT^2)|SUBJ)+ (1|Gender)+ (1|Ethnicity), data = train_data, REML = FALSE)
+rmsetrain[n] = rmse(autism_data$CHI_MLU[!is.na(autism_data$CHI_MLU)], predict(model3))
+rmsetest[n] = rmse(test$CHI_MLU[!is.na(test$CHI_MLU)], predict(model3, test[!is.na(test$CHI_MLU),], allow.new.levels = TRUE))
+  
+data.frame(rmsetest, rmsetrain)
+
+
+#model 4
+
+model_4 = lmer(CHI_MLU ~ VISIT + Diagnosis + ADOS1 + verbalIQ1 + I(VISIT^2)+(1+VISIT+ I(VISIT^2)|SUBJ)+ (1|Gender)+ (1|Ethnicity), data = train_data, REML = FALSE)
+
+rmsetrain[n] = rmse(autism_data$CHI_MLU[!is.na(autism_data$CHI_MLU)], predict(model_4))
+rmsetest[n] = rmse(test$CHI_MLU[!is.na(test$CHI_MLU)], predict(model_4, test[!is.na(test$CHI_MLU),], allow.new.levels = TRUE))
+  
+data.frame(rmsetest, rmsetrain)
+
+#model 5
+
+model_5 = lmer(CHI_MLU ~ VISIT + Diagnosis + nonverbalIQ1 + I(VISIT^2)+(1+VISIT+ I(VISIT^2)|SUBJ)+ (1|Gender)+ (1|Ethnicity), data = train_data, REML = FALSE)
+
+rmsetrain[n] = rmse(autism_data$CHI_MLU[!is.na(autism_data$CHI_MLU)], predict(model_5))
+rmsetest[n] = rmse(test$CHI_MLU[!is.na(test$CHI_MLU)], predict(model_5, test[!is.na(test$CHI_MLU),], allow.new.levels = TRUE))
+  
+data.frame(rmsetest, rmsetrain)
+
+```
+
+
+Then try to find the best possible predictive model of ChildMLU, that is, the one that produces the lowest information criterion.
+
+- Bonus question for the optional exercise: are information criteria correlated with cross-validated RMSE? That is, if you take AIC for Model 1, Model 2 and Model 3, do they co-vary with their cross-validated RMSE?
+
+### OPTIONAL: Exercise 5): Using Lasso for model selection
+
+Welcome to the last secret exercise. If you have already solved the previous exercises, and still there's not enough for you, you can expand your expertise by learning about penalizations. Check out this tutorial: http://machinelearningmastery.com/penalized-regression-in-r/ and make sure to google what penalization is, with a focus on L1 and L2-norms. Then try them on your data!
+
