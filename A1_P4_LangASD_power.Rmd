@@ -1,11 +1,11 @@
 ---
 title: "Assignment 1 - Language Development in ASD - part 4"
-author: "Riccardo Fusaroli"
-date: "August 10, 2017"
+author: "Kiri Koppelgaard"
+date: "October 10, 2018"
 output:
-  word_document: default
-  pdf_document: default
   html_document: default
+  pdf_document: default
+  word_document: default
 ---
 
 
@@ -144,17 +144,15 @@ RESPONSE:
 
 Based on the betas from the summary of my favorite model, I have estimated the minimal effect size. The minimal effect acceptable for the main effect verbal IQ is 0.1. For the the main effect of the ADOS score it is -0.01. For the interaction effect between visit and diagnosis it is 0.5, and for the interaction effect between diagnosis and the quadratic effect of visit it is - 0.03. These effect sizes are slightly more conservative, than the ones used in the previous study. Since they are based on the effect, each effect has at the current moment. 
 
-#I would love to argue better for this, but I have difficulties understanding exactly, what this means. Maybe you could come up with an example, please?  
+In principle using these more conservative minimum acceptable effect sizes should further decreases the power of the fixed effects. This is however not the case (very strange). As seen in the power plots below, only the interaction effect between diagnosis and visit has enough power to provide a reliable coefficient estimates. This is however not enough to produces a reliable analysis altogether. 
 
-In principle using these more conservative minimum acceptable effect sizes should further decreases the power of the fixed effects. This is however not the case (very strange). As seen in the power plots below, only the interaction effect between diagnosis and visit has enough power to provide a reliable beta. This is however not enough to produces a reliable analysis altogether (Should you take the mean of the power of all the effects to asses whether it is enough power or?)
-
-Thus, it would be a good idea to simulate additional participants. But something is up with the code. I have made a suggestion: https://github.com/KiriKoppelgaard/Portfolios
+Thus, it would be a good idea to simulate additional participants, this I have not done though.
 
 ### Exercise 3
 
 Assume you have only the resources to collect 30 kids (15 with ASD and 15 TDs). Identify the power for each relevant effect and discuss whether it's worth to run the study and why
 
-```{r, include = FALSE, eval= FALSE}
+```{r, echo = FALSE}
 ASD <- filter(autism_na,Diagnosis == "0")
 ASD15 <- sample(unique(ASD$SUBJ),15)
 dataASD <- filter(ASD, SUBJ %in% ASD15)
@@ -198,3 +196,6 @@ plot(powerCurveDV21)
 
 RESPONSE: 
 Neither of the fixed effects reach the required power of 80 %. Thus, without further participants, there is a reasonable risk of unreliable beta values and false negatives. 
+
+
+it appears that the plots you produced are from the "more conservative effect sizes" from exercise 2. The exercise was not clear about which it wanted (the estimated betas or the betas you input), but neither were you clear about which ones you used. And since visit*diagnosis is the main effect we were interested in, your results tell you that yes you should run the study (but also that you won't be able to detect the effect of ADOS or Verbal IQ you were looking for)
